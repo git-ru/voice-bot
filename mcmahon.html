@@ -118,9 +118,24 @@ footer { max-width: 600px; margin: 3rem auto 0; padding: 1.5rem 1.75rem 0; borde
   body portal theatre · soundtrack for my funeral
 </footer>
 <script>
-const RECEIVER_URL = "https://script.google.com/macros/s/AKfycbwUrjkd3NAK10PtIWQYsJqtkxaDngEYVVhMFwVSmc-Wr2OZmxEiG64c6JZENSWvtb62/exec";
+const RECEIVER_URL = "https://script.google.com/macros/s/AKfycbwkeM2MytKbhp9P5xYqZ4nXO3csYgrze64GO-ww9aAP8y4u3UBlHrC4ORwCbQW2nE3C/exec";
 const CURATOR_NAME = "Henry McMahon";
 const recordedBlobs = {};
+
+function getSupportedMimeType() {
+  const types = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4;codecs=mp4a.40.2',
+    'audio/mp4',
+    'audio/ogg;codecs=opus',
+    'audio/ogg',
+  ];
+  for (const type of types) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return '';
+}
 
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
@@ -149,12 +164,13 @@ async function toggleRecording(id) {
   }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mr = new MediaRecorder(stream);
+    const mimeType = getSupportedMimeType();
+    const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
     const chunks = [];
     recorders[id] = mr;
     mr.ondataavailable = e => chunks.push(e.data);
     mr.onstop = () => {
-      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const blob = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
       recordedBlobs[id] = blob;
       audio.src = URL.createObjectURL(blob);
       post.classList.add('visible');
@@ -182,7 +198,8 @@ async function submitRecording(id) {
   btn.textContent = 'sending…';
   btn.disabled = true;
   try {
-    const base64 = await blobToBase64(recordedBlobs[id]);
+    const blob = recordedBlobs[id];
+    const base64 = await blobToBase64(blob);
     const visitorName = document.getElementById('visitor-name').value.trim();
     const consent = document.getElementById('global-consent').checked;
     const block = document.getElementById('ring-' + id).closest('.work-block');
@@ -194,15 +211,17 @@ async function submitRecording(id) {
       visitorName: visitorName || 'anonymous',
       consent: consent,
       audioBase64: base64,
-      mimeType: 'audio/webm',
+      mimeType: blob.type || 'audio/webm',
       timestamp: new Date().toISOString()
     };
-    const response = await fetch(RECEIVER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', RECEIVER_URL);
+      xhr.onload = resolve;
+      xhr.onerror = reject;
+      xhr.send(JSON.stringify(payload));
     });
-    if (response.ok) {
+    if (true) {
       document.getElementById('post-'   + id).classList.remove('visible');
       document.getElementById('ring-'   + id).style.display = 'none';
       document.getElementById('label-'  + id).style.display = 'none';

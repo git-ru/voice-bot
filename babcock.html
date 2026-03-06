@@ -118,7 +118,7 @@ footer { max-width: 600px; margin: 3rem auto 0; padding: 1.5rem 1.75rem 0; borde
   body portal theatre · soundtrack for my funeral
 </footer>
 <script>
-const RECEIVER_URL = "https://script.google.com/macros/s/AKfycbwUrjkd3NAK10PtIWQYsJqtkxaDngEYVVhMFwVSmc-Wr2OZmxEiG64c6JZENSWvtb62/exec";
+const RECEIVER_URL = "https://script.google.com/macros/s/AKfycbwkeM2MytKbhp9P5xYqZ4nXO3csYgrze64GO-ww9aAP8y4u3UBlHrC4ORwCbQW2nE3C/exec";
 const CURATOR_NAME = "Babcock";
 const recordedBlobs = {};
 
@@ -214,13 +214,13 @@ async function submitRecording(id) {
       mimeType: blob.type || 'audio/webm',
       timestamp: new Date().toISOString()
     };
-    const response = await fetch(RECEIVER_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', RECEIVER_URL);
+      xhr.onload = resolve;
+      xhr.onerror = reject;
+      xhr.send(JSON.stringify(payload));
     });
-    // no-cors mode always returns opaque response, treat as success
     if (true) {
       document.getElementById('post-'   + id).classList.remove('visible');
       document.getElementById('ring-'   + id).style.display = 'none';
